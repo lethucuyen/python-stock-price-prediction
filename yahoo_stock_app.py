@@ -96,10 +96,41 @@ def predict_next_n_day(sticker,n):
     prediction = scaler.inverse_transform(prediction)
     return prediction
 
+#Relative Strength Index
+def relative_strength_idx(df, n=14):
+    close = df['Adj Close']
+    delta = close.diff()
+    delta = delta[1:]
+    pricesUp = delta.copy()
+    pricesDown = delta.copy()
+    pricesUp[pricesUp < 0] = 0
+    pricesDown[pricesDown > 0] = 0
+    rollUp = pricesUp.rolling(n).mean()
+    rollDown = pricesDown.abs().rolling(n).mean()
+    rs = rollUp / rollDown
+    rsi = 100.0 - (100.0 / (1.0 + rs))
+    return rsi
 
 sample['PredictionLSTM'] = get_predict_by_sticker("NOK")
 a = predict_next_n_day("NOK",30)
 print("A ",a)
+
+#Moving Averages
+sample['EMA_9'] = sample['Adj Close'].ewm(9).mean().shift()
+sample['SMA_5'] = sample['Adj Close'].rolling(5).mean().shift()
+sample['SMA_10'] = sample['Adj Close'].rolling(10).mean().shift()
+sample['SMA_15'] = sample['Adj Close'].rolling(15).mean().shift()
+sample['SMA_30'] = sample['Adj Close'].rolling(30).mean().shift()
+
+
+#RSI
+sample['RSI']=relative_strength_idx(sample).fillna(0)
+
+#MACD
+EMA_12 = pd.Series(sample['Adj Close'].ewm(span=12, min_periods=12).mean())
+EMA_26 = pd.Series(sample['Adj Close'].ewm(span=26, min_periods=26).mean())
+sample['MACD'] = pd.Series(EMA_12 - EMA_26)
+sample['MACD_signal'] = pd.Series(sample.MACD.ewm(span=9, min_periods=9).mean())
 
 app.layout = html.Div([
 
@@ -144,6 +175,7 @@ def update_graph(selected_dropdown):
     dropdown = {"TSLA": "Tesla", "AAPL": "Apple", "FB": "Facebook", "MSFT": "Microsoft", }
     trace1 = []
     trace2 = []
+    trace3 = []
     for stock in selected_dropdown:
         trace1.append(
             go.Scatter(x=sample.index,
@@ -156,8 +188,14 @@ def update_graph(selected_dropdown):
                        mode='lines', opacity=0.6,
                        visible='legendonly',
                        name=f'Prediction LSTM {dropdown[stock]}', textposition='bottom center'))
+        trace3.append(
+            go.Scatter(x=sample.index,
+                       y=sample['RSI'],
+                       mode='lines', opacity=0.6,
+                       visible='legendonly',
+                       name=f'RSI {dropdown[stock]}', textposition='bottom center'))
 
-    traces = [trace1, trace2]
+    traces = [trace1, trace2,trace3]
     data = [val for sublist in traces for val in sublist]
     figure = {'data': data,
               'layout': go.Layout(colorway=["#5E0DAC", '#FF4F00', '#375CB1',
@@ -177,7 +215,65 @@ def update_graph(selected_dropdown):
     return figure
 
 
-
+@app.callback(Output('volume', 'figure'),
+              [Input('my-dropdown2', 'value')])
+def update_graph(selected_dropdown_value):
+    dropdown = {"TSLA": "Tesla","AAPL": "Apple","FB": "Facebook","MSFT": "Microsoft",}
+    trace1 = []
+    trace2 = []
+    trace3 = []
+    trace4 = []
+    trace5 = []
+    trace6 = []
+    for stock in selected_dropdown_value:
+        trace1.append(
+          go.Scatter(x=sample.index,
+                       y=sample['Adj Close'],
+                     mode='lines', opacity=0.7,
+                     name=f'Adj Close {dropdown[stock]}', textposition='bottom center'))
+        trace2.append(
+            go.Scatter(x=sample.index,
+                       y=sample['EMA_9'],
+                       mode='lines', opacity=0.7,
+                       name=f'EMA_9 {dropdown[stock]}', textposition='bottom center'))
+        trace3.append(
+            go.Scatter(x=sample.index,
+                       y=sample['SMA_5'],
+                       mode='lines', opacity=0.7,
+                       name=f'SMA_5 {dropdown[stock]}', textposition='bottom center'))
+        trace4.append(
+            go.Scatter(x=sample.index,
+                       y=sample['SMA_10'],
+                       mode='lines', opacity=0.7,
+                       name=f'SMA_10  {dropdown[stock]}', textposition='bottom center'))
+        trace5.append(
+            go.Scatter(x=sample.index,
+                       y=sample['SMA_15'],
+                       mode='lines', opacity=0.7,
+                       name=f'SMA_15 {dropdown[stock]}', textposition='bottom center'))
+        trace6.append(
+            go.Scatter(x=sample.index,
+                       y=sample['SMA_30'],
+                       mode='lines', opacity=0.7,
+                       name=f'SMA_30 {dropdown[stock]}', textposition='bottom center'))
+    traces = [trace1,trace2,trace3,trace4,trace5,trace6]
+    data = [val for sublist in traces for val in sublist]
+    figure = {'data': data,
+              'layout': go.Layout(colorway=["#5E0DAC", '#FF4F00', '#375CB1',
+                                            '#FF7400', '#FFF400', '#FF0056'],
+            height=600,
+            title=f"Market Volume for {', '.join(str(dropdown[i]) for i in selected_dropdown_value)} Over Time",
+            xaxis={"title":"Date",
+                   'rangeselector': {'buttons': list([{'count': 1, 'label': '1M',
+                                                       'step': 'month',
+                                                       'stepmode': 'backward'},
+                                                      {'count': 6, 'label': '6M',
+                                                       'step': 'month',
+                                                       'stepmode': 'backward'},
+                                                      {'step': 'all'}])},
+                   'rangeslider': {'visible': True}, 'type': 'date'},
+             yaxis={"title":"Transactions Volume"})}
+    return figure
 
 if __name__ == '__main__':
     app.run_server(debug=True)
