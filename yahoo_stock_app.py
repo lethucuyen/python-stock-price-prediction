@@ -16,67 +16,90 @@ from tensorflow.keras.layers import Dense, Dropout, LSTM
 app = dash.Dash()
 server = app.server
 
-
-
 stocks = ['NOK', 'TSLA','PEP','AMZN','GPS','HSBC']
+
 
 #train data
 start = dt.datetime(2012,1,1)
 end = dt.datetime(2020,1,1)
 
-data = web.DataReader(stocks,'yahoo',start,end)
-
-#Prepare Data
-scaler = MinMaxScaler(feature_range=(0,1))
-scaled_data = scaler.fit_transform(data['Close']['NOK'].values.reshape(-1,1))
-
-prediction_days=60
-
 #Load Test Data
 test_start = dt.datetime(2020,1,1)
 test_end = dt.datetime.now()
 
-test_data =web.DataReader(stocks,'yahoo',test_start,test_end)
-print("test data: ",test_data['Close']['NOK'])
+sample = web.DataReader("NOK", 'yahoo', test_start, test_end)
 
-total_dataset = pd.concat((data['Close']['NOK'],test_data['Close']['NOK']),axis=0)
+def get_predict_by_sticker(sticker):
+    data = web.DataReader(sticker, 'yahoo', start, end)
+    #Prepare Data
+    scaler = MinMaxScaler(feature_range=(0,1))
+    scaled_data = scaler.fit_transform(data['Adj Close'].values.reshape(-1,1))
 
-model_inputs = total_dataset[len(total_dataset)-len(test_data)-prediction_days:].values
-model_inputs = model_inputs.reshape(-1,1)
-model_inputs = scaler.transform(model_inputs)
+    prediction_days=60
 
-#Make predictions on Test Data
+    test_data = web.DataReader(sticker, 'yahoo', test_start, test_end)
 
+    print("test data Adj Close: ",test_data['Adj Close'])
 
+    total_dataset = pd.concat((data['Adj Close'],test_data['Adj Close']),axis=0)
 
-x_test = []
+    model_inputs = total_dataset[len(total_dataset)-len(test_data)-prediction_days:].values
+    model_inputs = model_inputs.reshape(-1,1)
+    model_inputs = scaler.transform(model_inputs)
 
-for x in range(prediction_days,len(model_inputs)):
-    x_test.append(model_inputs[x-prediction_days:x,0])
-
-x_test = np.array(x_test)
-x_test = np.reshape(x_test,(x_test.shape[0],x_test.shape[1],1))
+    #Make predictions on Test Data
 
 
-#predict LSTM close price
 
-model = load_model("saved_lstm_closed_model_NOK.h5")
+    x_test = []
 
-predicted_prices = model.predict(x_test)
-predicted_prices = scaler.inverse_transform(predicted_prices)
-print("Predict: ",predicted_prices)
+    for x in range(prediction_days,len(model_inputs)):
+        x_test.append(model_inputs[x-prediction_days:x,0])
 
-#predict RNN close price
+    x_test = np.array(x_test)
+    x_test = np.reshape(x_test,(x_test.shape[0],x_test.shape[1],1))
 
-modelRNN=load_model("saved_rnn_closed_model_NOK/h5")
 
-predicted_prices_RNN=modelRNN.predict(x_test)
-predicted_prices_RNN = scaler.inverse_transform(predicted_prices_RNN)
+    #predict LSTM close price
 
-test_data['PredictionLSTM']=predicted_prices
+    model = load_model("saved_lstm_closed_model_NOK.h5")
 
-test_data['PredictionRNN']=predicted_prices_RNN
+    predicted_prices = model.predict(x_test)
+    predicted_prices = scaler.inverse_transform(predicted_prices)
+    print("Predict: ",predicted_prices)
+    test_data['PredictionLSTM'] = predicted_prices
+    return predicted_prices
 
+def predict_next_n_day(sticker,n):
+    data = web.DataReader(sticker, 'yahoo', start, end)
+    # Prepare Data
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaled_data = scaler.fit_transform(data['Adj Close'].values.reshape(-1, 1))
+
+    prediction_days = 60
+
+    test_data = web.DataReader(sticker, 'yahoo', test_start, test_end)
+
+    total_dataset = pd.concat((data['Adj Close'], test_data['Adj Close']), axis=0)
+
+    model_inputs = total_dataset[len(total_dataset) - len(test_data) - prediction_days:].values
+    model_inputs = model_inputs.reshape(-1, 1)
+    model_inputs = scaler.transform(model_inputs)
+
+     #Predict Next day
+    real_data = [model_inputs[len(model_inputs)+n-prediction_days:len(model_inputs)+n,0]]
+    real_data = np.array(real_data)
+    real_data = np.reshape(real_data, (real_data.shape[0], real_data.shape[1], 1))
+
+    model = load_model("saved_lstm_closed_model_NOK.h5")
+    prediction = model.predict(real_data)
+    prediction = scaler.inverse_transform(prediction)
+    return prediction
+
+
+sample['PredictionLSTM'] = get_predict_by_sticker("NOK")
+a = predict_next_n_day("NOK",30)
+print("A ",a)
 
 app.layout = html.Div([
 
@@ -121,26 +144,20 @@ def update_graph(selected_dropdown):
     dropdown = {"TSLA": "Tesla", "AAPL": "Apple", "FB": "Facebook", "MSFT": "Microsoft", }
     trace1 = []
     trace2 = []
-    trace3=[]
     for stock in selected_dropdown:
         trace1.append(
-            go.Scatter(x=test_data.index,
-                       y=test_data['Close']['NOK'],
+            go.Scatter(x=sample.index,
+                       y=sample['Adj Close'],
                        mode='lines', opacity=0.5,
                        name=f'Close {dropdown[stock]}', textposition='bottom center'))
         trace2.append(
-            go.Scatter(x=test_data.index,
-                       y=test_data['PredictionLSTM'],
+            go.Scatter(x=sample.index,
+                       y=sample['PredictionLSTM'],
                        mode='lines', opacity=0.6,
                        visible='legendonly',
                        name=f'Prediction LSTM {dropdown[stock]}', textposition='bottom center'))
-        trace3.append(
-            go.Scatter(x=test_data.index,
-                       y=test_data['PredictionRNN'],
-                       mode='lines', opacity=0.6,
-                       visible='legendonly',
-                       name=f'Prediction RNN {dropdown[stock]}', textposition='bottom center'))
-    traces = [trace1, trace2,trace3]
+
+    traces = [trace1, trace2]
     data = [val for sublist in traces for val in sublist]
     figure = {'data': data,
               'layout': go.Layout(colorway=["#5E0DAC", '#FF4F00', '#375CB1',

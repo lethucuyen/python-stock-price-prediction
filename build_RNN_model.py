@@ -5,8 +5,7 @@ import pandas_datareader as web
 
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout, LSTM,Bidirectional
-from keras import Input
+from tensorflow.keras.layers import Dense, Dropout,SimpleRNN
 
 from keras import Input
 
@@ -19,11 +18,11 @@ end = dt.datetime(2020,1,1)
 
 data = web.DataReader(stocks,'yahoo',start,end)
 
-print("Data: ",data['Close'])
+print("Data Adj Close: ",data['Adj Close'])
 
 #Prepare Data
 scaler = MinMaxScaler(feature_range=(0,1))
-scaled_data = scaler.fit_transform(data['Close']['NOK'].values.reshape(-1,1))
+scaled_data = scaler.fit_transform(data['Adj Close']['NOK'].values.reshape(-1,1))
 
 prediction_days=60
 
@@ -36,21 +35,19 @@ for x in range(prediction_days,len(scaled_data)):
 x_train, y_train = np.array(x_train), np.array(y_train)
 x_train = np.reshape(x_train,(x_train.shape[0],x_train.shape[1],1))
 
-#Build the model BLSTM
 
-model=Sequential()
-model.add(Bidirectional(LSTM(units=50, return_sequences=True), batch_input_shape=(None, 50, 5)))
-model.add(Dropout(0.3))
-model.add(Bidirectional(LSTM(units=50, return_sequences=False)))
-model.add(Dropout(0.3))
-model.add(Bidirectional(LSTM(units=50, return_sequences=True)))
-model.add(Dropout(0.3))
+#Build the model LMST
+model =Sequential()
+
+model.add(SimpleRNN(units=50,return_sequences=True,input_shape=(x_train.shape[1],1)))
+model.add(Dropout(0.2))
+model.add(SimpleRNN(units=50,return_sequences=True))
+model.add(Dropout(0.2))
+model.add(SimpleRNN(units=50))
+model.add(Dropout(0.2))
 model.add(Dense(units=1)) # prediction of the next closing price
 
 model.compile(optimizer='adam',loss='mean_squared_error')
 model.fit(x_train,y_train,epochs=25,batch_size=32)
 
-model.save("saved_lstm_closed_model_NOK.h5")
-
-
-
+model.save("saved_RNN_closed_model_NOK.h5")

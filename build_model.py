@@ -18,11 +18,11 @@ end = dt.datetime(2020,1,1)
 
 data = web.DataReader(stocks,'yahoo',start,end)
 
-print("Data: ",data['Close'])
+print("Data: ",data['Adj Close'])
 
 #Prepare Data
 scaler = MinMaxScaler(feature_range=(0,1))
-scaled_data = scaler.fit_transform(data['Close']['NOK'].values.reshape(-1,1))
+scaled_data = scaler.fit_transform(data['Adj Close']['NOK'].values.reshape(-1,1))
 
 prediction_days=60
 
