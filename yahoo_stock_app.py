@@ -16,7 +16,7 @@ from tensorflow.keras.layers import Dense, Dropout, LSTM
 app = dash.Dash()
 server = app.server
 
-stocks = ['NOK', 'TSLA','PEP','AMZN','GPS','HSBC']
+stocks = ['NOK', 'TSLA','AAPL','FB','MSFT']
 
 
 #train data
@@ -110,27 +110,32 @@ def relative_strength_idx(df, n=14):
     rs = rollUp / rollDown
     rsi = 100.0 - (100.0 / (1.0 + rs))
     return rsi
+def moving_averages(df):
+    df['EMA_9'] = df['Adj Close'].ewm(9).mean().shift()
+    df['SMA_5'] = df['Adj Close'].rolling(5).mean().shift()
+    df['SMA_10'] = df['Adj Close'].rolling(10).mean().shift()
+    df['SMA_15'] = df['Adj Close'].rolling(15).mean().shift()
+    df['SMA_30'] = df['Adj Close'].rolling(30).mean().shift()
+
+def macd(df):
+    EMA_12 = pd.Series(df['Adj Close'].ewm(span=12, min_periods=12).mean())
+    EMA_26 = pd.Series(df['Adj Close'].ewm(span=26, min_periods=26).mean())
+    df['MACD'] = pd.Series(EMA_12 - EMA_26)
+    df['MACD_signal'] = pd.Series(df.MACD.ewm(span=9, min_periods=9).mean())
 
 sample['PredictionLSTM'] = get_predict_by_sticker("NOK")
 a = predict_next_n_day("NOK",30)
 print("A ",a)
 
 #Moving Averages
-sample['EMA_9'] = sample['Adj Close'].ewm(9).mean().shift()
-sample['SMA_5'] = sample['Adj Close'].rolling(5).mean().shift()
-sample['SMA_10'] = sample['Adj Close'].rolling(10).mean().shift()
-sample['SMA_15'] = sample['Adj Close'].rolling(15).mean().shift()
-sample['SMA_30'] = sample['Adj Close'].rolling(30).mean().shift()
+m_a = moving_averages(sample)
 
 
 #RSI
 sample['RSI']=relative_strength_idx(sample).fillna(0)
 
 #MACD
-EMA_12 = pd.Series(sample['Adj Close'].ewm(span=12, min_periods=12).mean())
-EMA_26 = pd.Series(sample['Adj Close'].ewm(span=26, min_periods=26).mean())
-sample['MACD'] = pd.Series(EMA_12 - EMA_26)
-sample['MACD_signal'] = pd.Series(sample.MACD.ewm(span=9, min_periods=9).mean())
+m_a_c_d = macd(sample)
 
 app.layout = html.Div([
 
@@ -176,7 +181,10 @@ def update_graph(selected_dropdown):
     trace1 = []
     trace2 = []
     trace3 = []
+
+
     for stock in selected_dropdown:
+        sample[f'PredictionLSTM {stock}'] = get_predict_by_sticker(stock)
         trace1.append(
             go.Scatter(x=sample.index,
                        y=sample['Adj Close'],
@@ -184,7 +192,7 @@ def update_graph(selected_dropdown):
                        name=f'Close {dropdown[stock]}', textposition='bottom center'))
         trace2.append(
             go.Scatter(x=sample.index,
-                       y=sample['PredictionLSTM'],
+                       y=sample[f'PredictionLSTM {stock}'],
                        mode='lines', opacity=0.6,
                        visible='legendonly',
                        name=f'Prediction LSTM {dropdown[stock]}', textposition='bottom center'))
