@@ -11,18 +11,18 @@ from keras import Input
 
 #load Data
 
-stocks = ['NOK', 'TSLA','PEP','AMZN','GPS','HSBC']
+#stocks = ['NOK', 'TSLA','PEP','AMZN','GPS','HSBC']
 
 start = dt.datetime(2012,1,1)
 end = dt.datetime(2020,1,1)
 
-data = web.DataReader(stocks,'yahoo',start,end)
+data = web.DataReader('NOK','yahoo',start,end)
 
 print("Data: ",data['Adj Close'])
 
 #Prepare Data
 scaler = MinMaxScaler(feature_range=(0,1))
-scaled_data = scaler.fit_transform(data['Adj Close']['NOK'].values.reshape(-1,1))
+scaled_data = scaler.fit_transform(data['Adj Close'].values.reshape(-1,1))
 
 prediction_days=60
 
