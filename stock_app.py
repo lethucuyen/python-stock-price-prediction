@@ -7,214 +7,44 @@ from dash.dependencies import Input, Output, State
 from keras.models import load_model
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
+import pandas_datareader as web
+import datetime as dt
 
 app = dash.Dash()
 server = app.server
 
-scaler = MinMaxScaler(feature_range=(0, 1))
-
-df_nse = pd.read_csv("./NSE-Tata-Global-Beverages-Limited.csv")
-
-df_nse["Date"]=pd.to_datetime(df_nse.Date,format="%Y-%m-%d")
-df_nse.index = df_nse['Date']
-
-data = df_nse.sort_index(ascending=True, axis=0)
-
-close_data = pd.DataFrame(index=range(0, len(df_nse)), columns=['Date', 'Close'])
-for i in range(0, len(data)):
-    close_data["Date"][i] = data['Date'][i]
-    close_data["Close"][i] = data["Close"][i]
-
-roc_data = pd.DataFrame(index=range(0, len(df_nse)), columns=['Date', 'Rate_Of_Change'])
-for i in range(0, len(data)):
-    roc_data["Date"][i] = data['Date'][i]
-    roc_data["Rate_Of_Change"][i] = (data["Close"][len(data) - 1] - data["Close"][i]) / data["Close"][i]
-
-
-closed_grap_data = close_data[987:]
-
-
+# scaler = MinMaxScaler(feature_range=(0, 1))
+#
+# df_nse = pd.read_csv("./NSE-Tata-Global-Beverages-Limited.csv")
+#
+# df_nse["Date"]=pd.to_datetime(df_nse.Date,format="%Y-%m-%d")
+# df_nse.index = df_nse['Date']
+#
+# data = df_nse.sort_index(ascending=True, axis=0)
+#
+# close_data = pd.DataFrame(index=range(0, len(df_nse)), columns=['Date', 'Close'])
+# for i in range(0, len(data)):
+#     close_data["Date"][i] = data['Date'][i]
+#     close_data["Close"][i] = data["Close"][i]
+#
+# roc_data = pd.DataFrame(index=range(0, len(df_nse)), columns=['Date', 'Rate_Of_Change'])
+# for i in range(0, len(data)):
+#     roc_data["Date"][i] = data['Date'][i]
+#     roc_data["Rate_Of_Change"][i] = (data["Close"][len(data) - 1] - data["Close"][i]) / data["Close"][i]
+#
+#
+# closed_grap_data = close_data[987:]
 
 
-# df= pd.read_csv("./stock_data.csv")
-app.layout=html.Div([
+#train data
+start = dt.datetime(2012,1,1)
+end = dt.datetime(2020,1,1)
 
-                html.Div(id='output_div')
-])
-app.layout = html.Div([
-   
-    html.H1("Stock Price Analysis Dashboard", style={"textAlign": "center"}),
-    html.Div([
+#Load Test Data
+test_start = dt.datetime(2020,1,1)
+test_end = dt.datetime.now()
 
-    ]),
-    dcc.Tabs(id="tabs", children=[
-        dcc.Tab(label='NSE-TATAGLOBAL Stock Data',children=[
-			html.Div([
-				html.H2("LSTM Predicted closing price",style={"textAlign": "center"}),
-                dcc.Input(id="dateInput", type="number", placeholder="Enter number here",style={"display": "block", 'margin':'auto', "width": "50%"}),
-                html.Button(id='submit-button', type='submit', children='Submit',style={"display": "block", 'margin':'auto', "width": "10%"}),
-				dcc.Graph(
-					id="Closed Price Graph",
-					figure={
-						"data":[
-							go.Scatter(
-								x=close_data["Date"],
-								y=close_data["Close"],
-								mode='markers'
-							)
-
-						],
-						"layout":go.Layout(
-							title='Closed Price Graph',
-                            xaxis={"title": "Date",
-                                   'rangeselector': {'buttons': list([{'count': 1, 'label': '1M',
-                                                                       'step': 'month',
-                                                                       'stepmode': 'backward'},
-                                                                      {'count': 6, 'label': '6M',
-                                                                       'step': 'month',
-                                                                       'stepmode': 'backward'},
-                                                                      {'step': 'all'}])},
-                                   'rangeslider': {'visible': True}, 'type': 'date'},
-							yaxis={'title':'Closed Price'}
-						)
-					},
-				),
-                dcc.Input(id="Roc-dateInput", type="number", placeholder="Enter number here",style={"display": "block", 'margin':'auto', "width": "50%"}),
-                html.Button(id='Roc-submit-button', type='submit', children='Submit',style={"display": "block", 'margin':'auto', "width": "10%"}),
-                dcc.Graph(
-					id="Rate of Change Graph",
-					figure={
-						"data":[
-							go.Scatter(
-								x=roc_data["Date"],
-								y=roc_data["Rate_Of_Change"],
-								mode='markers'
-							)
-
-						],
-						"layout":go.Layout(
-							title='Rate Of Change Graph',
-                            xaxis={"title": "Date",
-                                  'rangeselector': {'buttons': list([{'count': 1, 'label': '1M',
-                                                                      'step': 'month',
-                                                                      'stepmode': 'backward'},
-                                                                     {'count': 6, 'label': '6M',
-                                                                      'step': 'month',
-                                                                      'stepmode': 'backward'},
-                                                                     {'step': 'all'}])},
-                                  'rangeslider': {'visible': True}, 'type': 'date'},
-							yaxis={'title':'Rate Of Change'}
-						)
-					},
-				)
-			])        		
-
-
-        ]),
-        # dcc.Tab(label='Facebook Stock Data', children=[
-        #     html.Div([
-        #         html.H1("Stocks High vs Lows",
-        #                 style={'textAlign': 'center'}),
-        #
-        #         dcc.Dropdown(id='my-dropdown',
-        #                      options=[{'label': 'Tesla', 'value': 'TSLA'},
-        #                               {'label': 'Apple','value': 'AAPL'},
-        #                               {'label': 'Facebook', 'value': 'FB'},
-        #                               {'label': 'Microsoft','value': 'MSFT'}],
-        #                      multi=True,value=['FB'],
-        #                      style={"display": "block", "margin-left": "auto",
-        #                             "margin-right": "auto", "width": "60%"}),
-        #         dcc.Graph(id='highlow'),
-        #         html.H1("Stocks Market Volume", style={'textAlign': 'center'}),
-        #
-        #         dcc.Dropdown(id='my-dropdown2',
-        #                      options=[{'label': 'Tesla', 'value': 'TSLA'},
-        #                               {'label': 'Apple','value': 'AAPL'},
-        #                               {'label': 'Facebook', 'value': 'FB'},
-        #                               {'label': 'Microsoft','value': 'MSFT'}],
-        #                      multi=True,value=['FB'],
-        #                      style={"display": "block", "margin-left": "auto",
-        #                             "margin-right": "auto", "width": "60%"}),
-        #         dcc.Graph(id='volume')
-        #     ], className="container"),
-        # ])
-
-
-    ])
-])
-
-
-
-
-
-
-
-# @app.callback(
-#     Output('highlow', 'figure'),
-#     [Input('my-dropdown', 'value')],
-# )
-# def update_graph(selected_dropdown):
-#     dropdown = {"TSLA": "Tesla","AAPL": "Apple","FB": "Facebook","MSFT": "Microsoft",}
-#     trace1 = []
-#     trace2 = []
-#     for stock in selected_dropdown:
-#         trace1.append(
-#           go.Scatter(x=df[df["Stock"] == stock]["Date"],
-#                      y=df[df["Stock"] == stock]["High"],
-#                      mode='lines', opacity=0.7,
-#                      name=f'High {dropdown[stock]}',textposition='bottom center'))
-#         trace2.append(
-#           go.Scatter(x=df[df["Stock"] == stock]["Date"],
-#                      y=df[df["Stock"] == stock]["Low"],
-#                      mode='lines', opacity=0.6,
-#                      name=f'Low {dropdown[stock]}',textposition='bottom center'))
-#     traces = [trace1, trace2]
-#     data = [val for sublist in traces for val in sublist]
-#     figure = {'data': data,
-#               'layout': go.Layout(colorway=["#5E0DAC", '#FF4F00', '#375CB1',
-#                                             '#FF7400', '#FFF400', '#FF0056'],
-#             height=600,
-#             title=f"High and Low Prices for {', '.join(str(dropdown[i]) for i in selected_dropdown)} Over Time",
-#             xaxis={"title":"Date",
-#                    'rangeselector': {'buttons': list([{'count': 1, 'label': '1M',
-#                                                        'step': 'month',
-#                                                        'stepmode': 'backward'},
-#                                                       {'count': 6, 'label': '6M',
-#                                                        'step': 'month',
-#                                                        'stepmode': 'backward'},
-#                                                       {'step': 'all'}])},
-#                    'rangeslider': {'visible': True}, 'type': 'date'},
-#              yaxis={"title":"Price (USD)"})}
-#     return figure
-# @app.callback(Output('volume', 'figure'),
-#               [Input('my-dropdown2', 'value')])
-# def update_graph(selected_dropdown_value):
-#     dropdown = {"TSLA": "Tesla","AAPL": "Apple","FB": "Facebook","MSFT": "Microsoft",}
-#     trace1 = []
-#     for stock in selected_dropdown_value:
-#         trace1.append(
-#           go.Scatter(x=df[df["Stock"] == stock]["Date"],
-#                      y=df[df["Stock"] == stock]["Volume"],
-#                      mode='lines', opacity=0.7,
-#                      name=f'Volume {dropdown[stock]}', textposition='bottom center'))
-#     traces = [trace1]
-#     data = [val for sublist in traces for val in sublist]
-#     figure = {'data': data,
-#               'layout': go.Layout(colorway=["#5E0DAC", '#FF4F00', '#375CB1',
-#                                             '#FF7400', '#FFF400', '#FF0056'],
-#             height=600,
-#             title=f"Market Volume for {', '.join(str(dropdown[i]) for i in selected_dropdown_value)} Over Time",
-#             xaxis={"title":"Date",
-#                    'rangeselector': {'buttons': list([{'count': 1, 'label': '1M',
-#                                                        'step': 'month',
-#                                                        'stepmode': 'backward'},
-#                                                       {'count': 6, 'label': '6M',
-#                                                        'step': 'month',
-#                                                        'stepmode': 'backward'},
-#                                                       {'step': 'all'}])},
-#                    'rangeslider': {'visible': True}, 'type': 'date'},
-#              yaxis={"title":"Transactions Volume"})}
-#     return figure
+sample = web.DataReader("NOK", 'yahoo', test_start, test_end)
 
 #Du doan su dung LSTM
 def LSTM_predict_next_price(data):
@@ -271,72 +101,156 @@ def RNN_predict_next_price(data):
 #du doan su dung XGBoost
 def XGBoost_predict_next_price(data):
     return 0;
+#update
+def get_predict_by_sticker(modelName,sticker):
+    data = web.DataReader(sticker, 'yahoo', start, end)
+    #Prepare Data
+    scaler = MinMaxScaler(feature_range=(0,1))
+    scaled_data = scaler.fit_transform(data['Adj Close'].values.reshape(-1,1))
 
-# return data for grahp
-@app.callback(
-        Output('Closed Price Graph', 'figure'),
-        [Input('submit-button', 'n_clicks')],
-        [State('dateInput', 'value')],
-)
-def update_output(clicks,value):
-    print(clicks,value);
-    if clicks is None:
-        dateAhead=0
-        print("1")
-        df_nse = pd.read_csv("./NSE-Tata-Global-Beverages-Limited.csv")
+    prediction_days=60
 
-        df_nse["Date"] = pd.to_datetime(df_nse.Date, format="%Y-%m-%d")
-        df_nse.index = df_nse['Date']
+    test_data = web.DataReader(sticker, 'yahoo', test_start, test_end)
 
-        data = df_nse.sort_index(ascending=True, axis=0)
+    print("test data Adj Close: ",test_data['Adj Close'])
 
-        close_data = pd.DataFrame(index=range(0, len(df_nse)), columns=['Date', 'Close'])
-        for i in range(0, len(data)):
-            close_data["Date"][i] = data['Date'][i]
-            close_data["Close"][i] = data["Close"][i]
-    else:
-        dateAhead=value
-        print("2")
-        df_nse = pd.read_csv("./NSE-Tata-Global-Beverages-Limited.csv")
+    total_dataset = pd.concat((data['Adj Close'],test_data['Adj Close']),axis=0)
 
-        df_nse["Date"] = pd.to_datetime(df_nse.Date, format="%Y-%m-%d")
-        df_nse.index = df_nse['Date']
+    model_inputs = total_dataset[len(total_dataset)-len(test_data)-prediction_days:].values
+    model_inputs = model_inputs.reshape(-1,1)
+    model_inputs = scaler.transform(model_inputs)
 
-        data = df_nse.sort_index(ascending=True, axis=0)
+    #Make predictions on Test Data
 
-        close_data = pd.DataFrame(index=range(0, len(df_nse)), columns=['Date', 'Close'])
-        for i in range(0, len(data)):
-            close_data["Date"][i] = data['Date'][i]
-            close_data["Close"][i] = data["Close"][i]
-        for i in range(0, dateAhead):
-            Next_Date = close_data["Date"][len(close_data) - 1] + pd.DateOffset(days=1)
-            Next_Price=LSTM_predict_next_price(close_data)
-            print("check point 1",Next_Date,Next_Price)
-            New_row=pd.DataFrame({"Date":[Next_Date],"Close":[Next_Price]})
-            print("check point 2",New_row)
-            close_data=close_data.append(New_row,ignore_index = True)
-            print("check point 3",close_data)
-    print("3")
-    graph_data=close_data
 
-    print("graph:", graph_data)
-    figure = {
-        "data":[
-            go.Scatter(
-            x=graph_data["Date"],
-            y=graph_data["Close"],
-            mode='markers'
-        )
 
-        ],
-        "layout":go.Layout(
-            title='scatter plot',
-            xaxis={'title':'Date'},
-            yaxis={'title':'Closed Price'}
-        )
-    }
-    print("4")
+    x_test = []
+
+    for x in range(prediction_days,len(model_inputs)):
+        x_test.append(model_inputs[x-prediction_days:x,0])
+
+    x_test = np.array(x_test)
+    x_test = np.reshape(x_test,(x_test.shape[0],x_test.shape[1],1))
+
+
+    #predict LSTM close price
+
+    model = load_model(f'saved_{modelName}_closed_model_{sticker}.h5')
+    predicted_prices = model.predict(x_test)
+    predicted_prices = scaler.inverse_transform(predicted_prices)
+    print("Predict: ",predicted_prices)
+    test_data['PredictionLSTM'] = predicted_prices
+    return predicted_prices
+
+def predict_next_n_day(modelName,sticker,n):
+    data = web.DataReader(sticker, 'yahoo', start, end)
+    # Prepare Data
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaled_data = scaler.fit_transform(data['Adj Close'].values.reshape(-1, 1))
+
+    prediction_days = 60
+
+    test_data = web.DataReader(sticker, 'yahoo', test_start, test_end)
+
+    total_dataset = pd.concat((data['Adj Close'], test_data['Adj Close']), axis=0)
+
+    model_inputs = total_dataset[len(total_dataset) - len(test_data) - prediction_days:].values
+    model_inputs = model_inputs.reshape(-1, 1)
+    model_inputs = scaler.transform(model_inputs)
+
+     #Predict Next day
+    real_data = [model_inputs[len(model_inputs)+n-prediction_days:len(model_inputs)+n,0]]
+    real_data = np.array(real_data)
+    real_data = np.reshape(real_data, (real_data.shape[0], real_data.shape[1], 1))
+
+    model = load_model(f'saved_{modelName}_closed_model_{sticker}.h5')
+    prediction = model.predict(real_data)
+    prediction = scaler.inverse_transform(prediction)
+    return prediction
+
+a = predict_next_n_day("lstm","NOK",30)
+print("A30 ",a)
+
+app.layout = html.Div([
+
+    html.H1("Stock Price Analysis Dashboard", style={"textAlign": "center"}),
+
+    dcc.Tabs(id="tabs", children=[
+        dcc.Tab(label='Facebook Stock Data', children=[
+            html.Div([
+                html.H1("Stocks High vs Lows",
+                        style={'textAlign': 'center'}),
+
+                dcc.Dropdown(id='my-dropdown',
+                             options=[{'label': 'Nokia', 'value': 'NOK'},{'label': 'Tesla', 'value': 'TSLA'},
+                                      {'label': 'Apple', 'value': 'AAPL'},
+                                      {'label': 'Facebook', 'value': 'FB'},
+                                      {'label': 'Microsoft', 'value': 'MSFT'}],
+                             multi=True, value=['NOK'],
+                             style={"display": "block", "margin-left": "auto",
+                                    "margin-right": "auto", "width": "60%"}),
+                dcc.Graph(id='highlow'),
+                html.H1("Stocks Market Volume", style={'textAlign': 'center'}),
+
+                dcc.Dropdown(id='my-dropdown2',
+                             options=[{'label': 'Nokia', 'value': 'NOK'},{'label': 'Tesla', 'value': 'TSLA'},
+                                      {'label': 'Apple', 'value': 'AAPL'},
+                                      {'label': 'Facebook', 'value': 'FB'},
+                                      {'label': 'Microsoft', 'value': 'MSFT'}],
+                             multi=True, value=['FB'],
+                             style={"display": "block", "margin-left": "auto",
+                                    "margin-right": "auto", "width": "60%"}),
+                dcc.Graph(id='volume')
+            ], className="container"),
+        ])
+
+    ])
+])
+
+@app.callback(Output('highlow', 'figure'),
+              [Input('my-dropdown', 'value')])
+def update_graph(selected_dropdown):
+    dropdown = {"NOK": "Nokia","TSLA": "Tesla", "AAPL": "Apple", "FB": "Facebook", "MSFT": "Microsoft", }
+    trace1 = []
+    trace2 = []
+
+
+    for stock in selected_dropdown:
+        sample[f'PredictionLSTM {stock}'] = get_predict_by_sticker("lstm",stock)
+        trace1.append(
+            go.Scatter(x=sample.index,
+                       y=sample['Adj Close'],
+                       mode='lines', opacity=0.5,
+                       name=f'Close {dropdown[stock]}', textposition='bottom center'))
+        trace2.append(
+            go.Scatter(x=sample.index,
+                       y=sample[f'PredictionLSTM {stock}'],
+                       mode='lines', opacity=0.6,
+                       visible='legendonly',
+                       name=f'Prediction LSTM {dropdown[stock]}', textposition='bottom center'))
+
+
+    traces = [trace1, trace2]
+    data = [val for sublist in traces for val in sublist]
+    figure = {'data': data,
+              'layout': go.Layout(colorway=["#5E0DAC", '#FF4F00', '#375CB1',
+                                            '#FF7400', '#FFF400', '#FF0056'],
+                                  height=600,
+                                  title=f"High and Low Prices for {', '.join(str(dropdown[i]) for i in selected_dropdown)} Over Time",
+                                  xaxis={"title": "Date",
+                                         'rangeselector': {'buttons': list([{'count': 1, 'label': '1M',
+                                                                             'step': 'month',
+                                                                             'stepmode': 'backward'},
+                                                                            {'count': 6, 'label': '6M',
+                                                                             'step': 'month',
+                                                                             'stepmode': 'backward'},
+                                                                            {'step': 'all'}])},
+                                         'rangeslider': {'visible': True}, 'type': 'date'},
+                                  yaxis={"title": "Price (USD)"})}
     return figure
+
+
+
 
 if __name__=='__main__':
 	app.run_server(debug=True)
