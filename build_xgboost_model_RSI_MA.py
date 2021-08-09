@@ -3,6 +3,8 @@ import pandas as pd
 import datetime as dt
 import pandas_datareader as web
 from xgboost import XGBRegressor
+import pickle
+
 #from sklearn.model_selection import  GridSearchCV
 
 #from sklearn.model_selection import train_test_split
@@ -50,6 +52,9 @@ df['MACD'] = pd.Series(EMA_12 - EMA_26)
 df['MACD_signal'] = pd.Series(df.MACD.ewm(span=9, min_periods=9).mean())
 df['RSI']=relative_strength_idx(df).fillna(0)
 
+
+print("before: ",df['Adj Close'])
+
 df['Adj Close']=df['Adj Close'].shift(-1)
 df = df.iloc[33:]
 df = df[:-1]
@@ -69,12 +74,14 @@ X = datasetX.values
 
 model = XGBRegressor()
 model.fit(X, Y)
-model.save_model("saved_xgboost_closed_model_NOK.h5")
+# model.save_model('0001.model')
+pickle.dump(model, open("XGBModel.pkl", "wb"))
+
 # make predictions for test data
 y_pred = model.predict(X)
 print(Y)
 print(y_pred)
-
+print("last item: ",y_pred[-1])
 #Build the model LMST
 
 
