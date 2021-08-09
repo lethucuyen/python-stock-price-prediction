@@ -9,6 +9,9 @@ from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 import pandas_datareader as web
 import datetime as dt
+import xgboost as xgb
+import pickle
+
 
 app = dash.Dash()
 server = app.server
@@ -44,7 +47,76 @@ end = dt.datetime(2020,1,1)
 test_start = dt.datetime(2020,1,1)
 test_end = dt.datetime.now()
 
+stocks = ['NOK', 'AAPL','FB']
+
+dataE = web.DataReader(stocks, 'yahoo', test_start, test_end)
 sample = web.DataReader("NOK", 'yahoo', test_start, test_end)
+
+#Relative Strength Index
+def relative_strength_idx(df, n=14):
+    close = df['Adj Close']
+    delta = close.diff()
+    delta = delta[1:]
+    pricesUp = delta.copy()
+    pricesDown = delta.copy()
+    pricesUp[pricesUp < 0] = 0
+    pricesDown[pricesDown > 0] = 0
+    rollUp = pricesUp.rolling(n).mean()
+    rollDown = pricesDown.abs().rolling(n).mean()
+    rs = rollUp / rollDown
+    rsi = 100.0 - (100.0 / (1.0 + rs))
+    return rsi
+# MA
+def MA(df):
+    df['EMA_9'] = df['Adj Close'].ewm(9).mean().shift()
+    df['SMA_5'] = df['Adj Close'].rolling(5).mean().shift()
+    df['SMA_10'] = df['Adj Close'].rolling(10).mean().shift()
+    df['SMA_15'] = df['Adj Close'].rolling(15).mean().shift()
+    df['SMA_30'] = df['Adj Close'].rolling(30).mean().shift()
+def MACD(df):
+    EMA_12 = pd.Series(df['Adj Close'].ewm(span=12, min_periods=12).mean())
+    EMA_26 = pd.Series(df['Adj Close'].ewm(span=26, min_periods=26).mean())
+    df['MACD'] = pd.Series(EMA_12 - EMA_26)
+    df['MACD_signal'] = pd.Series(df.MACD.ewm(span=9, min_periods=9).mean())
+
+def XGBOOST_RSI_MA_predict_next_price(sticker):
+    test_data = web.DataReader(sticker, 'yahoo', test_start, test_end)
+
+    test_data['RSI'] = relative_strength_idx(test_data).fillna(0)
+    MA(test_data)
+    MACD(test_data)
+    test_data['Adj Close'] = test_data['Adj Close'].shift(-1)
+    print("data adj: ", test_data)
+    test_data = test_data.iloc[33:]
+    test_data = test_data[:-1]
+    drop_cols = ['Volume', 'Open', 'Low', 'High', 'Close']
+
+    test_data = test_data.drop(drop_cols, 1)
+
+    print("DF: ", test_data)
+    datasetX = test_data.drop(['Adj Close'], 1)
+
+    X = datasetX.values
+    # model = xgb.Booster({'nthread': 4})  # init model
+    # model.load_model("model.bin")
+    model = pickle.load(open("XGB_RSI_MA_Model.pkl", "rb"))
+    y_pred = model.predict(X)
+    print("Xgboost",y_pred)
+    return y_pred[-1]
+
+
+def XGBOOST_predict_next_price(sticker):
+    test_data = web.DataReader(sticker, 'yahoo', test_start, test_end)
+    test_data['Adj Close'] = test_data['Adj Close'].shift(-1)
+    test_data = test_data[:-1]
+    drop_cols = ['Volume']
+    test_data = test_data.drop(drop_cols, 1)
+    datasetX = test_data.drop(['Adj Close'], 1)
+    X = datasetX.values
+    model = pickle.load(open("XGBModel.pkl", "rb"))
+    y_pred = model.predict(X)
+    print("Xgboost", y_pred)
+    return y_pred[-1]
 
 #Du doan su dung LSTM
 def LSTM_predict_next_price(data):
@@ -94,13 +166,6 @@ def LSTM_predict_next_price(data):
     closing_price = scaler.inverse_transform(closing_price)
     print("closing_price",closing_price,len(closing_price))
     return closing_price[len(closing_price)-1][0]
-
-#xuat data su dung RNN
-def RNN_predict_next_price(data):
-    return 0;
-#du doan su dung XGBoost
-def XGBoost_predict_next_price(data):
-    return 0;
 #update
 def get_predict_by_sticker(modelName,sticker):
     data = web.DataReader(sticker, 'yahoo', start, end)
@@ -170,6 +235,11 @@ def predict_next_n_day(modelName,sticker,n):
 
 a = predict_next_n_day("lstm","NOK",30)
 print("A30 ",a)
+
+b=XGBOOST_RSI_MA_predict_next_price("NOK")
+c=XGBOOST_predict_next_price("NOK")
+print("XGB_RSI_MA: ",b)
+print("XGB: ",c)
 
 app.layout = html.Div([
 
