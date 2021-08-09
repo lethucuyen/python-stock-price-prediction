@@ -79,7 +79,7 @@ def MACD(df):
     df['MACD'] = pd.Series(EMA_12 - EMA_26)
     df['MACD_signal'] = pd.Series(df.MACD.ewm(span=9, min_periods=9).mean())
 
-def XGBOOST_predict_next_price(sticker):
+def XGBOOST_RSI_MA_predict_next_price(sticker):
     test_data = web.DataReader(sticker, 'yahoo', test_start, test_end)
 
     test_data['RSI'] = relative_strength_idx(test_data).fillna(0)
@@ -99,9 +99,24 @@ def XGBOOST_predict_next_price(sticker):
     X = datasetX.values
     # model = xgb.Booster({'nthread': 4})  # init model
     # model.load_model("model.bin")
-    model = pickle.load(open("XGBModel.pkl", "rb"))
+    model = pickle.load(open("XGB_RSI_MA_Model.pkl", "rb"))
     y_pred = model.predict(X)
     print("Xgboost",y_pred)
+    return y_pred[-1]
+
+
+def XGBOOST_predict_next_price(sticker):
+    test_data = web.DataReader(sticker, 'yahoo', test_start, test_end)
+    test_data['Adj Close'] = test_data['Adj Close'].shift(-1)
+    test_data = test_data[:-1]
+    drop_cols = ['Volume']
+    test_data = test_data.drop(drop_cols, 1)
+    datasetX = test_data.drop(['Adj Close'], 1)
+    X = datasetX.values
+    model = pickle.load(open("XGBModel.pkl", "rb"))
+    y_pred = model.predict(X)
+    print("Xgboost", y_pred)
+    return y_pred[-1]
 
 #Du doan su dung LSTM
 def LSTM_predict_next_price(data):
@@ -221,7 +236,10 @@ def predict_next_n_day(modelName,sticker,n):
 a = predict_next_n_day("lstm","NOK",30)
 print("A30 ",a)
 
-b=XGBOOST_predict_next_price("NOK")
+b=XGBOOST_RSI_MA_predict_next_price("NOK")
+c=XGBOOST_predict_next_price("NOK")
+print("XGB_RSI_MA: ",b)
+print("XGB: ",c)
 
 app.layout = html.Div([
 

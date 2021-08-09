@@ -75,7 +75,7 @@ X = datasetX.values
 model = XGBRegressor()
 model.fit(X, Y)
 # model.save_model('0001.model')
-pickle.dump(model, open("XGBModel.pkl", "wb"))
+pickle.dump(model, open("XGB_RSI_MA_Model.pkl", "wb"))
 
 # make predictions for test data
 y_pred = model.predict(X)

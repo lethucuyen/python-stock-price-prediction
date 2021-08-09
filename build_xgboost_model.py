@@ -12,9 +12,13 @@ end = dt.datetime(2020,1,1)
 df = web.DataReader("NOK",'yahoo',start,end)
 
 dataset=df.values
+df['Adj Close']=df['Adj Close'].shift(-1)
+print("shift close", df)
+df = df[:-1]
+
+print(":-1 close", df)
 
 drop_cols = [ 'Volume' ]
-
 df = df.drop(drop_cols, 1)
 # split data into X and y
 datasetY = df['Adj Close'].copy()
