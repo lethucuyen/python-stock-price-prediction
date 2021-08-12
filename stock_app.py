@@ -47,7 +47,7 @@ end = dt.datetime(2020,1,1)
 test_start = dt.datetime(2020,1,1)
 test_end = dt.datetime.now()
 
-stocks = ['NOK', 'AAPL','FB']
+stocks = ['NOK', 'AAPL','FB','TSLA','NFLX']
 
 dataE = web.DataReader(stocks, 'yahoo', test_start, test_end)
 sample = web.DataReader("NOK", 'yahoo', test_start, test_end)
@@ -99,7 +99,7 @@ def XGBOOST_RSI_MA_predict_next_price(sticker):
     X = datasetX.values
     # model = xgb.Booster({'nthread': 4})  # init model
     # model.load_model("model.bin")
-    model = pickle.load(open("XGB_RSI_MA_Model.pkl", "rb"))
+    model = pickle.load(open("XGB_RSI_MA_NOK_Model.pkl", "rb"))
     y_pred = model.predict(X)
     print("Xgboost",y_pred)
     return y_pred[-1]
@@ -109,11 +109,11 @@ def XGBOOST_predict_next_price(sticker):
     test_data = web.DataReader(sticker, 'yahoo', test_start, test_end)
     test_data['Adj Close'] = test_data['Adj Close'].shift(-1)
     test_data = test_data[:-1]
-    drop_cols = ['Volume']
+    drop_cols = ['Volume','Close']
     test_data = test_data.drop(drop_cols, 1)
     datasetX = test_data.drop(['Adj Close'], 1)
     X = datasetX.values
-    model = pickle.load(open("XGBModel.pkl", "rb"))
+    model = pickle.load(open("XGB_NOK_Model.pkl", "rb"))
     y_pred = model.predict(X)
     print("Xgboost", y_pred)
     return y_pred[-1]
