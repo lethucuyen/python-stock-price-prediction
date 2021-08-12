@@ -9,7 +9,7 @@ import pickle
 start = dt.datetime(2012,1,1)
 end = dt.datetime(2020,1,1)
 
-df = web.DataReader("NOK",'yahoo',start,end)
+df = web.DataReader("NFLX",'yahoo',start,end)
 
 dataset=df.values
 df['Adj Close']=df['Adj Close'].shift(-1)
@@ -18,7 +18,7 @@ df = df[:-1]
 
 print(":-1 close", df)
 
-drop_cols = [ 'Volume' ]
+drop_cols = ['Volume','Close']
 df = df.drop(drop_cols, 1)
 # split data into X and y
 datasetY = df['Adj Close'].copy()
@@ -29,7 +29,7 @@ X = datasetX.values
 
 model = XGBRegressor()
 model.fit(X, Y)
-pickle.dump(model, open("XGBModel.pkl", "wb"))
+pickle.dump(model, open("XGB_NFLX_Model.pkl", "wb"))
 
 y_pred = model.predict(X)
 print(Y)
