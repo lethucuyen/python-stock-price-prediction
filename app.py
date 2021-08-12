@@ -19,7 +19,17 @@ end = dt.datetime(2020, 1, 1)
 test_start = dt.datetime(2020, 1, 1)
 test_end = dt.datetime.now()
 
-stocks = ['FB', 'NOK', 'TSLA']
+stock_choices = [
+    {"label": "Facebook", "value": 'FB'},
+    {"label": "Nokia", "value": 'NOK'},
+    {"label": "Tesla", "value": 'TSLA'},
+    {"label": "Netflix", "value": 'NFLX'},
+]
+
+stocks = []
+for _ in stock_choices:
+    stocks.append(_["value"])
+
 data = web.DataReader(stocks, 'yahoo', test_start, test_end)
 
 
@@ -27,8 +37,8 @@ def get_predict_by_sticker(modelName, sticker):
     dt = web.DataReader(sticker, 'yahoo', start, end)
 
     # Prepare Data
-    scaler = MinMaxScaler(feature_range=(0,1))
-    scaled_data = scaler.fit_transform(data['Adj Close'].values.reshape(-1,1))
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaled_data = scaler.fit_transform(data['Adj Close'].values.reshape(-1, 1))
     prediction_days = 60
 
     test_data = web.DataReader(sticker, 'yahoo', test_start, test_end)
@@ -52,8 +62,16 @@ def get_predict_by_sticker(modelName, sticker):
     x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
 
     # Predict LSTM close price
+    fileName = ""
 
-    model = load_model(f'saved_{modelName}_closed_model_{sticker}.h5')
+    if(modelName == "lstm" or modelName == "RNN"):
+        fileName = f'saved_{modelName}_closed_model_{sticker}.h5'
+    else:
+        fileName = f'{modelName}_{sticker}_Model.pkl'
+
+    print("..fileName =", fileName)
+
+    model = load_model(fileName)
 
     predicted_prices = model.predict(x_test)
     predicted_prices = scaler.inverse_transform(predicted_prices)
@@ -61,7 +79,12 @@ def get_predict_by_sticker(modelName, sticker):
     return predicted_prices
 
 
-method_choices = ["lstm", "XGBoost", "RNN"]
+method_choices = [
+    {"label": "LSTM", "value": "lstm"},
+    {"label": "RNN", "value": "RNN"},
+    {"label": "XGBoost", "value": "XGB"},
+    {"label": "XGBoost RSI/MA", "value": "XGB_RSI_MA"},
+]
 feature_choices = ["Close", "Price Of Change"]
 
 
@@ -104,8 +127,9 @@ app.layout = html.Div(
                         dcc.Dropdown(
                             id="pred-method-type",
                             options=[
-                                {"label": method_type, "value": method_type}
-                                for method_type in np.sort(method_choices)
+                                {"label": method_type["label"],
+                                    "value": method_type["value"]}
+                                for method_type in method_choices
                             ],
                             value="lstm",
                             clearable=False,
@@ -130,6 +154,23 @@ app.layout = html.Div(
                         )
                     ]
                 ),
+                html.Div(
+                    children=[
+                        html.Div(children="Công ty",
+                                 className="menu-title"),
+                        dcc.Dropdown(
+                            id="pred-company",
+                            options=[
+                                {"label": stock["label"], "value": stock["value"]}
+                                for stock in stock_choices
+                            ],
+                            value=['FB'],
+                            multi=True,
+                            clearable=False,
+                            className="dropdown",
+                        )
+                    ]
+                ),
                 # html.Div(
                 #     children=[
                 #         html.Div(
@@ -144,23 +185,23 @@ app.layout = html.Div(
                 #         ),
                 #     ]
                 # ),
-                html.Div(
-                    children=[
-                        html.Div(
-                            children="Chọn thời điểm để dự đoán (đvị: ngày)", className="menu-title"
-                        ),
-                        dcc.Input(
-                            id="pred-number",
-                            type="number",
-                            placeholder="n ngày",
-                            value=1,
-                            min=1,
-                            max=100,
-                            step=3,
-                            className="input"
-                        )
-                    ]
-                ),
+                # html.Div(
+                #     children=[
+                #         html.Div(
+                #             children="Chọn thời điểm để dự đoán (đvị: ngày)", className="menu-title"
+                #         ),
+                #         dcc.Input(
+                #             id="pred-number",
+                #             type="number",
+                #             placeholder="n ngày",
+                #             value=1,
+                #             min=1,
+                #             max=100,
+                #             step=3,
+                #             className="input"
+                #         )
+                #     ]
+                # ),
             ],
             className="menu"
         ),
@@ -186,17 +227,20 @@ app.layout = html.Div(
     [
         Input("pred-method-type", "value"),
         Input("pred-feature-type", "value"),
-        Input("pred-number", "value"),
+        Input("pred-company", "value"),
+        # Input("pred-number", "value"),
         # Input("date-range", "start_date"),
         # Input("date-range", "end_date"),
     ]
 )
-def update_charts(method_type, feature_type, number):
+def update_charts(method_type, feature_type, companies):
     traces = []
+    print("..method_type =", method_type)
+    print("..companies =", companies)
 
-    #method_type = "lstm"  # lstm | RNN | ???
+    # method_type = "lstm"  # lstm | RNN | ???
 
-    for stock in stocks:
+    for stock in companies:
         data[f'Prediction {stock}'] = get_predict_by_sticker(
             method_type, stock)
 
@@ -213,7 +257,7 @@ def update_charts(method_type, feature_type, number):
                 x=data.index,
                 y=data[f'Prediction {stock}'],
                 mode='lines', opacity=0.6,
-                visible='legendonly',
+                # visible='legendonly',
                 name=f'Prediction{method_type} {stock}',
                 textposition='bottom center')
         )
