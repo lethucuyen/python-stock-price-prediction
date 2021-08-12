@@ -99,11 +99,11 @@ def XGBOOST_RSI_MA_predict_next_price(sticker):
     X = datasetX.values
     # model = xgb.Booster({'nthread': 4})  # init model
     # model.load_model("model.bin")
-    model = pickle.load(open("XGB_RSI_MA_NOK_Model.pkl", "rb"))
+    model = pickle.load(open(f'XGB_RSI_MA_{sticker}_Model.pkl', "rb"))
     y_pred = model.predict(X)
     print("Xgboost",y_pred)
     return y_pred[-1]
-
+    # return y_pred
 
 def XGBOOST_predict_next_price(sticker):
     test_data = web.DataReader(sticker, 'yahoo', test_start, test_end)
@@ -113,10 +113,11 @@ def XGBOOST_predict_next_price(sticker):
     test_data = test_data.drop(drop_cols, 1)
     datasetX = test_data.drop(['Adj Close'], 1)
     X = datasetX.values
-    model = pickle.load(open("XGB_NOK_Model.pkl", "rb"))
+    model = pickle.load(open(f'XGB_{sticker}_Model.pkl', "rb"))
     y_pred = model.predict(X)
     print("Xgboost", y_pred)
     return y_pred[-1]
+    # return y_pred
 
 #Du doan su dung LSTM
 def LSTM_predict_next_price(data):
@@ -233,13 +234,27 @@ def predict_next_n_day(modelName,sticker,n):
     prediction = scaler.inverse_transform(prediction)
     return prediction
 
+def predictPOC(predict_price,close_price_today):
+    price_change=predict_price-close_price_today
+    POC=price_change/close_price_today
+    POC=POC*100
+    POC=np.round(POC,2)
+    return POC
+
 a = predict_next_n_day("lstm","NOK",30)
 print("A30 ",a)
+print("sample['Adj Close'][-1] ",sample['Adj Close'][-1])
+a_today=sample['Adj Close'][-1]
+pocA=predictPOC(a,a_today)
+print("pocA: ",pocA)
 
-b=XGBOOST_RSI_MA_predict_next_price("NOK")
-c=XGBOOST_predict_next_price("NOK")
-print("XGB_RSI_MA: ",b)
-print("XGB: ",c)
+# sample[f'XGBOOST_RSI_MA_predict_next_price {"NOK"}']=XGBOOST_RSI_MA_predict_next_price("NOK")
+# sample[f'XGBOOST_predict_next_price {"NOK"}']=XGBOOST_predict_next_price("NOK")
+
+XGB_RSI_MA=XGBOOST_RSI_MA_predict_next_price("NFLX")
+XGB=XGBOOST_predict_next_price("NFLX")
+print("XGB_RSI_MA: ",XGB_RSI_MA)
+print("XGB: ",XGB)
 
 app.layout = html.Div([
 
