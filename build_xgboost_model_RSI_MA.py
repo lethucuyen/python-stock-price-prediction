@@ -56,8 +56,8 @@ df['RSI']=relative_strength_idx(df).fillna(0)
 print("before: ",df['Adj Close'])
 
 df['Adj Close']=df['Adj Close'].shift(-1)
-df = df.iloc[33:]
-df = df[:-1]
+df = df.iloc[33:]  # Because of moving averages and MACD line
+df = df[:-1]    # Because of shifting close price
 #df.index = range(len(df))
 
 
@@ -72,7 +72,7 @@ datasetX = df.drop(['Adj Close'], 1)
 Y = datasetY.values
 X = datasetX.values
 
-model = XGBRegressor()
+model = XGBRegressor(objective='reg:squarederror', verbose=False)
 model.fit(X, Y)
 # model.save_model('0001.model')
 pickle.dump(model, open("XGB_RSI_MA_NFLX_Model.pkl", "wb"))

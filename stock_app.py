@@ -85,10 +85,10 @@ def XGBOOST_RSI_MA_predict_next_price(sticker):
     test_data['RSI'] = relative_strength_idx(test_data).fillna(0)
     MA(test_data)
     MACD(test_data)
-    test_data['Adj Close'] = test_data['Adj Close'].shift(-1)
+    # test_data['Adj Close'] = test_data['Adj Close'].shift(-1)
     print("data adj: ", test_data)
     test_data = test_data.iloc[33:]
-    test_data = test_data[:-1]
+    # test_data = test_data[:-1]
     drop_cols = ['Volume', 'Open', 'Low', 'High', 'Close']
 
     test_data = test_data.drop(drop_cols, 1)
@@ -97,18 +97,17 @@ def XGBOOST_RSI_MA_predict_next_price(sticker):
     datasetX = test_data.drop(['Adj Close'], 1)
 
     X = datasetX.values
-    # model = xgb.Booster({'nthread': 4})  # init model
-    # model.load_model("model.bin")
     model = pickle.load(open(f'XGB_RSI_MA_{sticker}_Model.pkl', "rb"))
     y_pred = model.predict(X)
-    print("Xgboost",y_pred)
-    return y_pred[-1]
-    # return y_pred
+    predicted_prices = test_data.copy()
+    predicted_prices[f'XGBOOST_RSI_MA_predict_next_price_{sticker}'] = y_pred
+    # return y_pred[-1]
+    return predicted_prices
 
 def XGBOOST_predict_next_price(sticker):
     test_data = web.DataReader(sticker, 'yahoo', test_start, test_end)
-    test_data['Adj Close'] = test_data['Adj Close'].shift(-1)
-    test_data = test_data[:-1]
+    # test_data['Adj Close'] = test_data['Adj Close'].shift(-1)
+    # test_data = test_data[:-1]
     drop_cols = ['Volume','Close']
     test_data = test_data.drop(drop_cols, 1)
     datasetX = test_data.drop(['Adj Close'], 1)
@@ -116,8 +115,9 @@ def XGBOOST_predict_next_price(sticker):
     model = pickle.load(open(f'XGB_{sticker}_Model.pkl', "rb"))
     y_pred = model.predict(X)
     print("Xgboost", y_pred)
-    return y_pred[-1]
-    # return y_pred
+
+    # return y_pred[-1]
+    return y_pred
 
 #Du doan su dung LSTM
 def LSTM_predict_next_price(data):
@@ -248,13 +248,13 @@ a_today=sample['Adj Close'][-1]
 pocA=predictPOC(a,a_today)
 print("pocA: ",pocA)
 
-# sample[f'XGBOOST_RSI_MA_predict_next_price {"NOK"}']=XGBOOST_RSI_MA_predict_next_price("NOK")
-# sample[f'XGBOOST_predict_next_price {"NOK"}']=XGBOOST_predict_next_price("NOK")
 
-XGB_RSI_MA=XGBOOST_RSI_MA_predict_next_price("NFLX")
-XGB=XGBOOST_predict_next_price("NFLX")
+sample[f'XGBOOST_predict_next_price {"NOK"}']=XGBOOST_predict_next_price("NOK")
+
+XGB_RSI_MA=XGBOOST_RSI_MA_predict_next_price("NOK")
+# XGB=XGBOOST_predict_next_price("NFLX")
 print("XGB_RSI_MA: ",XGB_RSI_MA)
-print("XGB: ",XGB)
+print("XGB: ",sample[f'XGBOOST_predict_next_price {"NOK"}'])
 
 app.layout = html.Div([
 
