@@ -49,9 +49,15 @@ test_end = dt.datetime.now()
 
 stocks = ['NOK', 'AAPL','FB','TSLA','NFLX']
 
-dataE = web.DataReader(stocks, 'yahoo', test_start, test_end)
+# dataE = web.DataReader(stocks, 'yahoo', test_start, test_end)
 sample = web.DataReader("NOK", 'yahoo', test_start, test_end)
 
+dataXGBoost=web.DataReader("NFLX", 'yahoo', test_start, test_end)
+
+drop_cols = [ 'Volume', 'Open', 'Low', 'High','Close']
+
+sample = sample.drop(drop_cols, 1)
+dataXGBoost = dataXGBoost.drop(drop_cols, 1)
 #Relative Strength Index
 def relative_strength_idx(df, n=14):
     close = df['Adj Close']
@@ -102,15 +108,12 @@ def XGBOOST_RSI_MA_predict_next_price(sticker):
     predicted_prices = test_data.copy()
     predicted_prices[f'XGBOOST_RSI_MA_predict_next_price_{sticker}'] = y_pred
     # return y_pred[-1]
+
     return predicted_prices
 
 def XGBOOST_predict_next_price(sticker):
     test_data = web.DataReader(sticker, 'yahoo', test_start, test_end)
-    # test_data['Adj Close'] = test_data['Adj Close'].shift(-1)
-    # test_data = test_data[:-1]
-    drop_cols = ['Volume','Close']
-    test_data = test_data.drop(drop_cols, 1)
-    datasetX = test_data.drop(['Adj Close'], 1)
+    datasetX = test_data['Adj Close'].copy()
     X = datasetX.values
     model = pickle.load(open(f'XGB_{sticker}_Model.pkl', "rb"))
     y_pred = model.predict(X)
@@ -249,12 +252,20 @@ pocA=predictPOC(a,a_today)
 print("pocA: ",pocA)
 
 
-sample[f'XGBOOST_predict_next_price {"NOK"}']=XGBOOST_predict_next_price("NOK")
+dataXGBoost[f'XGBOOST_predict_next_price_{"NFLX"}']=XGBOOST_predict_next_price("NFLX")
+next_price_xgboost=dataXGBoost[f'XGBOOST_predict_next_price_{"NFLX"}'][-1]
+dataXGBoost[f'XGBOOST_predict_next_price_{"NFLX"}']=dataXGBoost[f'XGBOOST_predict_next_price_{"NFLX"}'].shift(1)
+dataXGBoost.dropna(inplace=True)
+print("dataXGBoost: ",dataXGBoost)
 
-XGB_RSI_MA=XGBOOST_RSI_MA_predict_next_price("NOK")
-# XGB=XGBOOST_predict_next_price("NFLX")
-print("XGB_RSI_MA: ",XGB_RSI_MA)
-print("XGB: ",sample[f'XGBOOST_predict_next_price {"NOK"}'])
+
+XGBOOST_RSI_MA_Data=XGBOOST_RSI_MA_predict_next_price("NFLX")
+Next_Price_XGBOOST_RSI_MA_Data=XGBOOST_RSI_MA_Data[f'XGBOOST_RSI_MA_predict_next_price_{"NFLX"}'][-1]
+XGBOOST_RSI_MA_Data[f'XGBOOST_RSI_MA_predict_next_price_{"NFLX"}']=XGBOOST_RSI_MA_Data[f'XGBOOST_RSI_MA_predict_next_price_{"NFLX"}'].shift(1)
+XGBOOST_RSI_MA_Data.dropna(inplace=True)
+
+print("predicted_prices  ",XGBOOST_RSI_MA_Data)
+
 
 app.layout = html.Div([
 
