@@ -26,6 +26,7 @@ stock_choices = [
     {"label": "Nokia", "value": "NOK"},
     {"label": "Tesla", "value": "TSLA"},
     {"label": "Netflix", "value": "NFLX"},
+    # {"label": "Apple", "value": "AAPL"},
 ]
 
 stocks = []
@@ -268,7 +269,7 @@ app.layout = html.Div(
                                             "value": feature_type}
                                         for feature_type in np.sort(feature_choices)
                                     ],
-                                    value="Close",
+                                    value=["Close", "Price Of Change"],
                                     multi=True,
                                     clearable=False,
                                     className="dropdown",
@@ -355,14 +356,16 @@ app.layout = html.Div(
                                     children=dcc.Loading(
                                         id="loading-2",
                                         type="circle",
-                                        children=html.Div(id="loading-output-2"),
+                                        children=html.Div(
+                                            id="loading-output-2"),
                                         style={"textAlign": "right"}
                                     ),
                                 ),
                                 html.Div(
                                     "Kết quả", className="menu-title"),
-                                html.Div(id="container-button-basic",
+                                html.Div(id="container-result",
                                          children="23", className="result-box"),
+                                html.P(id="container-poc-result", className="menu-title")
                             ],
                         ),
                     ],
@@ -395,7 +398,8 @@ app.layout = html.Div(
 # Get result value of stock prediction
 @app.callback(
     [
-        Output("container-button-basic", "children"),
+        Output("container-result", "children"),
+        Output("container-poc-result", "children"),
         Output("loading-output-2", "children")
     ],
     [Input("submit-val", "n_clicks")],
@@ -406,13 +410,10 @@ app.layout = html.Div(
         State("pred-company", "value"),
     ])
 def update_output(n_clicks, value, method_type, feature_type, companies):
-    #sample = web.DataReader("NOK", "yahoo", test_start, test_end)
-    #a = predict_next_n_day("lstm","NOK",30)
-    #a_today=sample["Adj Close"][-1]
-    # pocA=predictPOC(a,a_today)
     if(value == None and (method_type == "lstm" or method_type == "RNN")):
-        return "", ""
+        return "", "", ""
     results = []
+    pocs_results = []
     for stock in companies:
         result = None
         if(method_type == "lstm" or method_type == "RNN"):
@@ -425,11 +426,20 @@ def update_output(n_clicks, value, method_type, feature_type, companies):
             result = XGBOOST_RSI_MA_predict_next_price(stock)
             results.append(f"{stock}: {np.round(float(result), 2)}")
 
-        print(f"..result = {stock}: {result}")
+        stock_data = data["Adj Close"][stock]
+        predict_price = result
+        close_price_today = stock_data[-1]
+        poc = predictPOC(predict_price, close_price_today)
+        pocs_results.append(f"{stock}: {np.round(float(poc[0][0]), 2)}")
+
+        print(f"..result = {stock}: {result} (POC={poc})")
 
     if(len(results) == 0):
-        return "", ""
-    return " | ".join((str(val) for val in results if val)), ""
+        return "", "", ""
+    pocText = ""
+    if("Price Of Change" in feature_type):
+        pocText = "Price Of Change: " + (" | ".join((str(val) for val in pocs_results if val)))
+    return " | ".join((str(val) for val in results if val)), pocText, ""
 
 
 @app.callback(
