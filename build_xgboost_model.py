@@ -11,6 +11,7 @@ end = dt.datetime(2020,1,1)
 
 df = web.DataReader("NFLX",'yahoo',start,end)
 
+print("df ", df)
 dataset=df.values
 df['Adj Close']=df['Adj Close'].shift(-1)
 print("shift close", df)

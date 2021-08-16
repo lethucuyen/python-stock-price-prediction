@@ -16,7 +16,7 @@ from keras import Input
 start = dt.datetime(2012,1,1)
 end = dt.datetime(2020,1,1)
 
-data = web.DataReader('NFLX','yahoo',start,end)
+data = web.DataReader('AAPL','yahoo',start,end)
 
 print("Data: ",data['Adj Close'])
 
@@ -50,4 +50,4 @@ model.add(Dense(units=1)) # prediction of the next closing price
 model.compile(optimizer='adam',loss='mean_squared_error')
 model.fit(x_train,y_train,epochs=25,batch_size=32)
 
-model.save("saved_lstm_closed_model_NFLX.h5")
+model.save("saved_lstm_closed_model_AAPL.h5")
