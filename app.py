@@ -26,7 +26,7 @@ stock_choices = [
     {"label": "Nokia", "value": "NOK"},
     {"label": "Tesla", "value": "TSLA"},
     {"label": "Netflix", "value": "NFLX"},
-    # {"label": "Apple", "value": "AAPL"},
+    {"label": "Apple", "value": "AAPL"},
 ]
 
 stocks = []
@@ -419,19 +419,20 @@ def update_output(n_clicks, value, method_type, feature_type, companies):
         if(method_type == "lstm" or method_type == "RNN"):
             result = predict_next_n_day(method_type, stock, value)
             results.append(f"{stock}: {np.round(float(result[0][0]), 2)}")
+            predict_price = result[0][0]
         elif (method_type == "XGB"):
             result = XGBOOST_predict_next_price(stock)
             results.append(f"{stock}: {np.round(float(result), 2)}")
+            predict_price = result
         elif (method_type == "XGB_RSI_MA"):
             result = XGBOOST_RSI_MA_predict_next_price(stock)
             results.append(f"{stock}: {np.round(float(result), 2)}")
+            predict_price = result
 
         stock_data = data["Adj Close"][stock]
-        predict_price = result
         close_price_today = stock_data[-1]
         poc = predictPOC(predict_price, close_price_today)
-        pocs_results.append(f"{stock}: {np.round(float(poc[0][0]), 2)}")
-
+        pocs_results.append(f"{stock}: {poc}")
         print(f"..result = {stock}: {result} (POC={poc})")
 
     if(len(results) == 0):
