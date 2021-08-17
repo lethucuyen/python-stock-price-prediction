@@ -6,8 +6,8 @@ from xgboost import XGBRegressor
 import pickle
 
 
-start = dt.datetime(2012,1,1)
-end = dt.datetime(2020,1,1)
+start = dt.datetime(2017,1,1)
+end = dt.datetime(2021,1,1)
 
 df = web.DataReader("NOK",'yahoo',start,end)
 

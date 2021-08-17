@@ -121,6 +121,18 @@ def XGBOOST_predict_next_price(sticker):
 
     # return y_pred[-1]
     return y_pred
+def XGBOOST_predict_n_day(sticker,n):
+    test_data = web.DataReader(sticker, 'yahoo', test_start, test_end)
+    datasetX = test_data['Adj Close'].copy()
+    X = datasetX.values
+    model = pickle.load(open(f'XGB_{sticker}_Model.pkl', "rb"))
+    for i in range(0, n):
+        y_pred = model.predict(X)
+        X = y_pred
+        print("len", len(y_pred))
+
+    return y_pred[-1]
+    # return y_pred
 
 #Du doan su dung LSTM
 def LSTM_predict_next_price(data):
@@ -251,6 +263,8 @@ a_today=sample['Adj Close'][-1]
 pocA=predictPOC(a,a_today)
 print("pocA: ",pocA)
 
+lac=XGBOOST_predict_n_day("NFLX",5)
+print("LAC: ",lac)
 
 dataXGBoost[f'XGBOOST_predict_next_price_{"NFLX"}']=XGBOOST_predict_next_price("NFLX")
 next_price_xgboost=dataXGBoost[f'XGBOOST_predict_next_price_{"NFLX"}'][-1]
@@ -263,8 +277,8 @@ XGBOOST_RSI_MA_Data=XGBOOST_RSI_MA_predict_next_price("NFLX")
 Next_Price_XGBOOST_RSI_MA_Data=XGBOOST_RSI_MA_Data[f'XGBOOST_RSI_MA_predict_next_price_{"NFLX"}'][-1]
 XGBOOST_RSI_MA_Data[f'XGBOOST_RSI_MA_predict_next_price_{"NFLX"}']=XGBOOST_RSI_MA_Data[f'XGBOOST_RSI_MA_predict_next_price_{"NFLX"}'].shift(1)
 XGBOOST_RSI_MA_Data.dropna(inplace=True)
-
 print("predicted_prices  ",XGBOOST_RSI_MA_Data)
+print("predicted_prices RSI  ",XGBOOST_RSI_MA_Data['RSI'])
 
 
 app.layout = html.Div([

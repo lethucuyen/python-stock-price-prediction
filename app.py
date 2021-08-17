@@ -21,6 +21,9 @@ end = dt.datetime(2020, 1, 1)
 test_start = dt.datetime(2020, 1, 1)
 test_end = dt.datetime.now()
 
+
+test_start_xgboost = dt.datetime(2021, 1, 1)
+
 stock_choices = [
     {"label": "Facebook", "value": "FB"},
     {"label": "Nokia", "value": "NOK"},
@@ -138,7 +141,7 @@ def MACD(df):
 
 # [XGBOOST_RSI_MA Method] Get prediction output in tomorrow by stock sticker
 def XGBOOST_RSI_MA_predict_next_price(sticker):
-    test_data = web.DataReader(sticker, "yahoo", test_start, test_end)
+    test_data = web.DataReader(sticker, "yahoo", test_start_xgboost, test_end)
 
     test_data["RSI"] = relative_strength_idx(test_data).fillna(0)
     MA(test_data)
@@ -165,7 +168,7 @@ def XGBOOST_RSI_MA_predict_next_price(sticker):
 
 
 def XGBOOST_predict_next_price(sticker):
-    test_data = web.DataReader(sticker, "yahoo", test_start, test_end)
+    test_data = web.DataReader(sticker, "yahoo", test_start_xgboost, test_end)
     datasetX = test_data["Adj Close"].copy()
     X = datasetX.values
     model = pickle.load(open(f"XGB_{sticker}_Model.pkl", "rb"))

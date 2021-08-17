@@ -18,10 +18,11 @@ import pickle
 
 
 
-start = dt.datetime(2012,1,1)
-end = dt.datetime(2020,1,1)
 
-df = web.DataReader("NFLX",'yahoo',start,end)
+start = dt.datetime(2020,1,1)
+end = dt.datetime.now()
+
+df = web.DataReader("NOK",'yahoo',start,end)
 
 #MA
 df['EMA_9'] = df['Adj Close'].ewm(9).mean().shift()
@@ -75,7 +76,7 @@ X = datasetX.values
 model = XGBRegressor(objective='reg:squarederror', verbose=False)
 model.fit(X, Y)
 # model.save_model('0001.model')
-pickle.dump(model, open("XGB_RSI_MA_NFLX_Model.pkl", "wb"))
+pickle.dump(model, open("XGB_RSI_MA_NOK_Model.pkl", "wb"))
 
 # make predictions for test data
 y_pred = model.predict(X)
