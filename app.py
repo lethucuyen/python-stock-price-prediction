@@ -39,50 +39,71 @@ data = web.DataReader(stocks, "yahoo", test_start, test_end)
 #########################################################################
 # Get prediction data series by stock sticker
 def get_predict_by_sticker(modelName, sticker):
-    dt = web.DataReader(sticker, "yahoo", start, end)
+    if (modelName == "lstm" or modelName == "RNN"):
+        dt = web.DataReader(sticker, "yahoo", start, end)
 
-    # Prepare Data
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    scaled_data = scaler.fit_transform(data["Adj Close"].values.reshape(-1, 1))
-    prediction_days = 60
+        # Prepare Data
+        scaler = MinMaxScaler(feature_range=(0, 1))
+        scaled_data = scaler.fit_transform(
+            data["Adj Close"].values.reshape(-1, 1))
+        prediction_days = 60
 
-    test_data = web.DataReader(sticker, "yahoo", test_start, test_end)
+        test_data = web.DataReader(sticker, "yahoo", test_start, test_end)
+        print("..test data Adj Close: ", test_data["Adj Close"])
 
-    total_dataset = pd.concat(
-        (dt["Adj Close"], test_data["Adj Close"]), axis=0)
+        total_dataset = pd.concat(
+            (dt["Adj Close"], test_data["Adj Close"]), axis=0)
 
-    model_inputs = total_dataset[len(
-        total_dataset)-len(test_data)-prediction_days:].values
-    model_inputs = model_inputs.reshape(-1, 1)
-    model_inputs = scaler.transform(model_inputs)
+        model_inputs = total_dataset[len(
+            total_dataset)-len(test_data)-prediction_days:].values
+        model_inputs = model_inputs.reshape(-1, 1)
+        model_inputs = scaler.transform(model_inputs)
 
-    # Make predictions on Test Data
+        # Make predictions on Test Data
+        x_test = []
 
-    x_test = []
+        for x in range(prediction_days, len(model_inputs)):
+            x_test.append(model_inputs[x-prediction_days:x, 0])
 
-    for x in range(prediction_days, len(model_inputs)):
-        x_test.append(model_inputs[x-prediction_days:x, 0])
+        x_test = np.array(x_test)
+        x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
 
-    x_test = np.array(x_test)
-    x_test = np.reshape(x_test, (x_test.shape[0], x_test.shape[1], 1))
+        # Predict LSTM close price
+        model = load_model(f"saved_{modelName}_closed_model_{sticker}.h5")
+        predicted_prices = model.predict(x_test)
+        predicted_prices = scaler.inverse_transform(predicted_prices)
+        print("..Predict: ", predicted_prices)
 
-    # Predict LSTM close price
-    fileName = ""
-
-    if(modelName == "lstm" or modelName == "RNN"):
-        fileName = f"saved_{modelName}_closed_model_{sticker}.h5"
+        test_data["PredictionLSTM"] = predicted_prices
+        return predicted_prices
     else:
-        fileName = f"{modelName}_{sticker}_Model.pkl"
-
-    model = load_model(fileName)
-
-    predicted_prices = model.predict(x_test)
-    predicted_prices = scaler.inverse_transform(predicted_prices)
-
-    return predicted_prices
+        dataXGBoost = web.DataReader(sticker, "yahoo", test_start, test_end)
+        drop_cols = ["Volume", "Open", "Low", "High", "Close"]
+        dataXGBoost = dataXGBoost.drop(drop_cols, 1)
+        if(modelName == "XGB"):
+            dataXGBoost[f"XGBOOST_predict_next_price_{sticker}"] = XGBOOST_predict_next_price(
+                sticker)
+            # next_price_xgboost = dataXGBoost[f"XGBOOST_predict_next_price_{sticker}"][-1]
+            dataXGBoost[f"XGBOOST_predict_next_price_{sticker}"] = dataXGBoost[f"XGBOOST_predict_next_price_{sticker}"].shift(
+                1)
+            dataXGBoost.dropna(inplace=True)
+            print("..dataXGBoost: ", dataXGBoost)
+            # print("..predicted_tommorow:", next_price_xgboost)
+            return dataXGBoost[f"XGBOOST_predict_next_price_{sticker}"]
+        else:
+            XGBOOST_RSI_MA_Data = XGBOOST_RSI_MA_predict_next_price(sticker)
+            # Next_Price_XGBOOST_RSI_MA_Data = XGBOOST_RSI_MA_Data[
+            #     f"XGBOOST_RSI_MA_predict_next_price_{sticker}"][-1]
+            XGBOOST_RSI_MA_Data[f"XGBOOST_RSI_MA_predict_next_price_{sticker}"] = XGBOOST_RSI_MA_Data[
+                f"XGBOOST_RSI_MA_predict_next_price_{sticker}"].shift(1)
+            XGBOOST_RSI_MA_Data.dropna(inplace=True)
+            print("..predicted_prices  ", XGBOOST_RSI_MA_Data)
+            # print("..predicted_tommorow:", Next_Price_XGBOOST_RSI_MA_Data)
+            return XGBOOST_RSI_MA_Data[f"XGBOOST_RSI_MA_predict_next_price_{sticker}"]
 
 
 # (Helper)
+# Relative Strength Index
 def relative_strength_idx(df, n=14):
     close = df["Adj Close"]
     delta = close.diff()
@@ -122,36 +143,36 @@ def XGBOOST_RSI_MA_predict_next_price(sticker):
     test_data["RSI"] = relative_strength_idx(test_data).fillna(0)
     MA(test_data)
     MACD(test_data)
-    test_data["Adj Close"] = test_data["Adj Close"].shift(-1)
+    # test_data["Adj Close"] = test_data["Adj Close"].shift(-1)
+    print("..data adj: ", test_data)
     test_data = test_data.iloc[33:]
-    test_data = test_data[:-1]
+    # test_data = test_data[:-1]
     drop_cols = ["Volume", "Open", "Low", "High", "Close"]
-
     test_data = test_data.drop(drop_cols, 1)
+    print("..DF: ", test_data)
 
     datasetX = test_data.drop(["Adj Close"], 1)
 
     X = datasetX.values
-    # model = xgb.Booster({"nthread": 4})  # init model
-    # model.load_model("model.bin")
     model = pickle.load(open(f"XGB_RSI_MA_{sticker}_Model.pkl", "rb"))
     y_pred = model.predict(X)
-    return y_pred[-1]
+    predicted_prices = test_data.copy()
+    predicted_prices[f"XGBOOST_RSI_MA_predict_next_price_{sticker}"] = y_pred
+    # return y_pred[-1]
+    return predicted_prices
 
 # [XGBOOST Method] Get prediction output in tomorrow by stock sticker
 
 
 def XGBOOST_predict_next_price(sticker):
     test_data = web.DataReader(sticker, "yahoo", test_start, test_end)
-    test_data["Adj Close"] = test_data["Adj Close"].shift(-1)
-    test_data = test_data[:-1]
-    drop_cols = ["Volume", "Close"]
-    test_data = test_data.drop(drop_cols, 1)
-    datasetX = test_data.drop(["Adj Close"], 1)
+    datasetX = test_data["Adj Close"].copy()
     X = datasetX.values
     model = pickle.load(open(f"XGB_{sticker}_Model.pkl", "rb"))
     y_pred = model.predict(X)
-    return y_pred[-1]
+    print("..Xgboost", y_pred)
+    # return y_pred[-1]
+    return y_pred
 
 
 # [LSTM/RNN Method] Get prediction output in n days by stock sticker
@@ -365,7 +386,8 @@ app.layout = html.Div(
                                     "Kết quả", className="menu-title"),
                                 html.Div(id="container-result",
                                          children="23", className="result-box"),
-                                html.P(id="container-poc-result", className="menu-title")
+                                html.P(id="container-poc-result",
+                                       className="menu-title")
                             ],
                         ),
                     ],
@@ -421,11 +443,13 @@ def update_output(n_clicks, value, method_type, feature_type, companies):
             results.append(f"{stock}: {np.round(float(result[0][0]), 2)}")
             predict_price = result[0][0]
         elif (method_type == "XGB"):
-            result = XGBOOST_predict_next_price(stock)
+            dataXGBoost = XGBOOST_predict_next_price(stock)
+            result = dataXGBoost[-1]
             results.append(f"{stock}: {np.round(float(result), 2)}")
             predict_price = result
         elif (method_type == "XGB_RSI_MA"):
-            result = XGBOOST_RSI_MA_predict_next_price(stock)
+            XGBOOST_RSI_MA_Data = XGBOOST_RSI_MA_predict_next_price(stock)
+            result = XGBOOST_RSI_MA_Data[f"XGBOOST_RSI_MA_predict_next_price_{stock}"][-1]
             results.append(f"{stock}: {np.round(float(result), 2)}")
             predict_price = result
 
@@ -433,13 +457,15 @@ def update_output(n_clicks, value, method_type, feature_type, companies):
         close_price_today = stock_data[-1]
         poc = predictPOC(predict_price, close_price_today)
         pocs_results.append(f"{stock}: {poc}")
+
         print(f"..result = {stock}: {result} (POC={poc})")
 
     if(len(results) == 0):
         return "", "", ""
     pocText = ""
     if("Price Of Change" in feature_type):
-        pocText = "Price Of Change: " + (" | ".join((str(val) for val in pocs_results if val)))
+        pocText = "Price Of Change: " + \
+            (" | ".join((str(val) for val in pocs_results if val)))
     return " | ".join((str(val) for val in results if val)), pocText, ""
 
 
@@ -450,7 +476,7 @@ def update_output(n_clicks, value, method_type, feature_type, companies):
     ],
     Input("pred-method-type", "value"),
 )
-def update_charts(method_type):
+def update_input(method_type):
     if(method_type == "lstm" or method_type == "RNN"):
         return None, False
     return 1, True
@@ -473,8 +499,11 @@ def update_charts(method_type, feature_type, companies):
         traces = []
         # method_type = "lstm"  # lstm | RNN | XGB | XGB_RSI_MA
         for stock in companies:
-            data[f"Prediction {stock}"] = get_predict_by_sticker(
-                method_type, stock)
+            chart_series = get_predict_by_sticker(method_type, stock)
+            print("..input of charts:", chart_series)
+            data[f"Prediction {stock}"] = chart_series
+            # data[f"Prediction {stock}"] = get_predict_by_sticker(
+            #     method_type, stock)
 
             traces.append(
                 go.Scatter(
